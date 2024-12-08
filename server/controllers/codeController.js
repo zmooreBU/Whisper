@@ -6,6 +6,7 @@ const {
 } = require('../httpStatusCodes');
 const { MailtrapClient } = require('mailtrap');
 const { emailValidator } = require('../utils/helper');
+const OTP = require('../models/OTPModel');
 
 const TOKEN = process.env.MAILTRAP_TOKEN;
 const ENDPOINT = 'https://send.api.mailtrap.io/';
@@ -16,14 +17,43 @@ const sender = {
   name: 'Whisper',
 };
 
-const sendCode = async (req, res) => {
-  const { email, code } = req.body;
+function generateCode() {
+	const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	let result = '';
+	const charactersLength = characters.length;
 
-  if (!email || !code) {
+	for (let i = 0; i < 6; i++) {
+		result += characters.charAt(Math.floor(Math.random() * charactersLength));
+	}
+
+	return result;
+}
+
+async function createOTP(email) {
+  const oldOTP = await OTP.findOne({email});
+  if (oldOTP) {
+    await oldOTP.deleteOne();
+  }
+  passcode = generateCode();
+  const otp = new OTP({
+    email,
+    otp: passcode
+  });
+  await otp.save();
+  return passcode;
+
+}
+
+const sendCode = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
     return res
       .status(BAD_REQUEST)
       .json({ message: `Email or Code is missing` });
   }
+
+  const passcode = await createOTP(email);
 
   const recipients = [
     {
@@ -36,7 +66,7 @@ const sendCode = async (req, res) => {
       from: sender,
       to: recipients,
       subject: 'Your Whisper Verfication Code',
-      text: code,
+      text: passcode,
     })
     .then(() => {
       console.log('success');

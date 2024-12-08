@@ -46,3 +46,20 @@ export const decrypt = (encryptedText) => {
 
 	return originalText;
 };
+
+export const hex2arr = (str) => {
+	if(!str) {
+		return new Uint8Array();
+	}
+	const arr = [];
+	for (let i = 0; i < str.length; i+=2) {
+		arr.push(parseInt(str.substr(i,2), 16));
+	}
+	return new Uint8Array(arr);
+}
+
+export const buf2Hex = (buffer) => {
+	return Array.from( new Uint8Array(buffer))
+				.map(x => ('00' + x.toString(16)).slice(-2))
+				.join('');
+}

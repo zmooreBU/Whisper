@@ -1,10 +1,10 @@
 /* eslint-disable require-atomic-updates */
 
 import React, { useRef, useState } from 'react';
-import { decrypt, encrypt, generateCode } from 'src/lib/utils';
 
 import { PropTypes } from 'prop-types';
 import { api } from 'src/lib/axios';
+import { SecureKeyExchange } from 'src/lib/secureKeyExchange';
 import { useAuth } from 'src/context/AuthContext';
 
 const Login = () => {
@@ -26,15 +26,19 @@ const Login = () => {
 			return;
 		}
 
+		const keyExchange = new SecureKeyExchange();
+		keyExchange.initiateKeyExchange(api)
+			.then(result => {
+				console.log('Key exchange successful:', result);
+			})
+			.catch(error => {
+				console.error('Key exchange failed:', error);
+			});
 		try {
 			setIsLoading(true);
-			const code = generateCode();
 			const response = await api.post('/code', {
 				email,
-				code,
 			});
-
-			localStorage.setItem('code', encrypt(code));
 
 			if (response.status === 200) {
 				setToInputCode(true);
@@ -57,30 +61,30 @@ const Login = () => {
 
 		try {
 			setIsLoading(true);
-			const code = decrypt(localStorage.getItem('code'));
-			if (inputedCode === code) {
 				const response = await api.post('/login', {
 					email,
+					inputedCode
 				});
 
 				const data = await response.data;
-				if (response.status === 200) {
-					const id = data.id;
+				if (data.login) {
+					if (response.status === 200) {
+						const id = data.id;
 
-					dispatchAuth({
-						type: 'LOGIN',
-						payload: {
-							loginId: id,
-							loginType: 'email',
-							email,
-						},
-					});
-				} else if (response.status === 500) {
-					throw new Error(data.message);
+						dispatchAuth({
+							type: 'LOGIN',
+							payload: {
+								loginId: id,
+								loginType: 'email',
+								email,
+							},
+						});
+					} else if (response.status === 500) {
+						throw new Error(data.message);
+					}
+				} else {
+					setError('Wrong Code, Try Again');
 				}
-			} else {
-				setError('Wrong Code, Try Again');
-			}
 		} catch (error) {
 			console.error(error);
 		} finally {

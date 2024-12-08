@@ -9,6 +9,7 @@ const storage = multer.memoryStorage();
 const imageUpload = multer({ storage: storage });
 
 const User = require('../models/UserModel');
+const OTP = require('../models/OTPModel');
 const { emailValidator, generateObjectId } = require('../utils/helper');
 
 const { isUserBlocked, blockUser } = require('../utils/lib.js');
@@ -39,33 +40,45 @@ const createUserWithId = async (email, id) => {
 };
 
 const loginUser = async (req, res) => {
-  const { email, id } = req.body;
-  try {
-    const findUser = await User.findOne({ email });
+  const { email, inputedCode, id } = req.body;
 
-    if (!findUser) {
-      let newUser;
-      if (id) {
-        newUser = await createUserWithId(email, id);
-      } else {
-        newUser = await createUserWithAutoId(email);
+  try {
+    const findCode = await OTP.findOne({email})
+    if (findCode.otp==inputedCode) {
+      await findCode.deleteOne();
+      const findUser = await User.findOne({ email });
+
+      if (!findUser) {
+        let newUser;
+        if (id) {
+          newUser = await createUserWithId(email, id);
+        } else {
+          newUser = await createUserWithAutoId(email);
+        }
+
+        const newId = newUser._id;
+
+        return res.status(200).json({
+          login: true,
+          id: newId,
+        });
+      } else if (findUser && id) {
+      // User already exists, and an ID was provided
+        return res.status(CONFLICT).json();
       }
 
-      const newId = newUser._id;
-
-      return res.status(200).json({
-        id: newId,
+      // User exists, return their ID
+      res.status(OK).json({
+        login: true,
+        id: findUser._id,
       });
-    } else if (findUser && id) {
-      // User already exists, and an ID was provided
-      return res.status(CONFLICT).json();
+    } else {
+      res.status(OK).json({
+        login:false,
+      })
     }
-
-    // User exists, return their ID
-    res.status(OK).json({
-      id: findUser._id,
-    });
   } catch (err) {
+    console.log(err);
     // Handle errors
     res.status(INTERNAL_SERVER_ERROR).json({
       message: `An error occurred while logging in: ${err}`,

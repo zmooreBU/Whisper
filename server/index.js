@@ -50,11 +50,14 @@ const CloseChatHandler = require('./sockets/close');
 const stopSearch = require('./sockets/stopSearch');
 const onlineStatus = require('./sockets/onlineStatus');
 const requestPublicKeyHandler = require('./sockets/requestPublicKey');
+const ServerKeyExchange = require('./controllers/keyController');
+const serverKeyExchange = new ServerKeyExchange();
 
 app.use(express.json());
 app.use(cors());
 app.use(UserRouter);
 app.use('/code', CodeRouter);
+serverKeyExchange.setupRoutes(app);
 
 // triggers when a user is connected to a socket
 io.on('connection', (socket) => {
